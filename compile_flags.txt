@@ -1,0 +1,4 @@
+-Isrc/kernel
+-Isrc
+-std=gnu99
+-Wno-incompatible-library-redeclaration
