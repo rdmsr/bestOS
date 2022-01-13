@@ -15,5 +15,6 @@ char *dirname(char *path);
 char *strtok(char *str, char *delim);
 char *strdup(char *s);
 char *strcat(char *s, char *s2);
+char *strcpy(char *dest, const char *src);
 
 #endif

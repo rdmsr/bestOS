@@ -17,7 +17,7 @@
 
 void *stivale2_get_tag(struct stivale2_struct *stivale2_struct, uint64_t id);
 
-Lock lock;
+static uint32_t lock = 0;
 
 void *liballoc_alloc(int s)
 {
@@ -31,13 +31,13 @@ int liballoc_free(void *p, int s)
 }
 int liballoc_lock()
 {
-    SPINLOCK_ACQUIRE(lock);
+    spin_lock(&lock);
     return 0;
 }
 
 int liballoc_unlock()
 {
-    LOCK_RELEASE(lock);
+    spin_release(&lock);
     return 0;
 }
 
@@ -75,29 +75,16 @@ void kernel_main(struct stivale2_struct *stivale2_struct, uint8_t *stack, size_t
         }
     }
 
-    log("If this worked, nice");
+    print_files(vfs_get_root());
 
-    /*sched_init();
+    sched_init();
 
-    Task *my_task = task_init(0);
+    const char *argv[] = {"some arg", "other arg", NULL};
+    const char *envp[] = {"some arg", "other arg", NULL};
 
-    Task *my_other_task = task_init(0);
+    sched_new_elf_process("/yes.elf", argv, envp);
 
-    VfsNode *elf_file = vfs_open("/hello.elf", O_RDWR);
-
-    if (!elf_file)
-    {
-        log("errno: %d", get_errno());
-    }
-
-    my_task->stack.rip = elf_load_program(elf_file->address, my_task);
-    my_other_task->stack.rip = elf_load_program(elf_file->address, my_other_task);
-
-    sched_push(my_task);
-
-    sched_push(my_other_task);
-
-    sched_start();*/
+    sched_start();
 
     for (;;)
     {

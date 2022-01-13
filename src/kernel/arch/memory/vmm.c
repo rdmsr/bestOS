@@ -8,7 +8,7 @@
 #define PML_ENTRY(addr, offset) (size_t)(addr & ((uintptr_t)0x1ff << offset)) >> offset;
 
 uintptr_t *kernel_pagemap = 0;
-Lock lock;
+static uint32_t lock = 0;
 
 static uint64_t *get_next_level(uint64_t *table, size_t index, uint64_t flags)
 {
@@ -33,7 +33,7 @@ void flush_tlb(void *addr)
 
 void vmm_map(uint64_t *pagemap, uintptr_t physical_address, uintptr_t virtual_address, uint64_t flags)
 {
-    SPINLOCK_ACQUIRE(lock);
+    spin_lock(&lock);
     size_t level4 = PML_ENTRY(virtual_address, 39);
     size_t level3 = PML_ENTRY(virtual_address, 30);
     size_t level2 = PML_ENTRY(virtual_address, 21);
@@ -46,7 +46,7 @@ void vmm_map(uint64_t *pagemap, uintptr_t physical_address, uintptr_t virtual_ad
     pml1[level1] = physical_address | flags;
 
     flush_tlb((void *)virtual_address);
-    LOCK_RELEASE(lock);
+    spin_release(&lock);
 }
 
 void vmm_unmap(uint64_t *pagemap, uintptr_t virtual_address, uint64_t flags)

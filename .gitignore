@@ -7,3 +7,4 @@ build
 *.iso
 bestOS.iso
 .vscode
+*.so

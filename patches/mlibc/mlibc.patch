@@ -2,16 +2,16 @@ diff --git a/ports/mlibc-orig/meson.build b/ports/mlibc-workdir/meson.build
 index b781895..8ebcb71 100644
 --- a/ports/mlibc-orig/meson.build
 +++ b/ports/mlibc-workdir/meson.build
-@@ -44,7 +44,7 @@ if not headers_only
+@@ -48,7 +48,7 @@ if not headers_only
  	c_compiler = meson.get_compiler('c')
  
  	add_project_arguments('-nostdinc', '-fno-builtin', language: ['c', 'cpp'])
--	add_project_arguments('-std=c++17', language: 'cpp')
-+	add_project_arguments('-std=gnu++17', language: 'cpp')
+-	add_project_arguments('-std=c++20', language: 'cpp')
++	add_project_arguments('-std=gnu++20', language: 'cpp')
  	add_project_arguments('-fno-rtti', '-fno-exceptions', language: 'cpp')
+ 	add_project_arguments('-Wall', '-Wextra', language: ['c', 'cpp'])
  	add_project_link_arguments('-nostdlib', language: ['c', 'cpp'])
- 
-@@ -89,6 +89,10 @@ elif host_machine.system() == 'qword'
+@@ -110,6 +110,10 @@ elif host_machine.system() == 'qword'
  	rtdl_include_dirs += include_directories('sysdeps/qword/include')
  	libc_include_dirs += include_directories('sysdeps/qword/include')
  	subdir('sysdeps/qword')
@@ -26,7 +26,7 @@ diff --git a/ports/mlibc-workdir/sysdeps/bestos/crt-x86_64/crt0.S b/ports/mlibc-
 new file mode 100644
 index 0000000..0a0a4a0
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/bestos/crt-x86_64/crt0.S
++++ b/ports/mlibc-workdir/ports/mlibc-workdir/sysdeps/bestos/crt-x86_64/crt0.S
 @@ -0,0 +1,7 @@
 +
 +.section .text
@@ -120,7 +120,7 @@ index 0000000..d64e08d
 +int sys_ioctl(int fd, unsigned long request, void *arg, int *result) STUB_ONLY
 +int sys_isatty(int fd) STUB_ONLY
 +int sys_open(const char *path, int flags, int *fd) STUB_ONLY
-+
++int sys_futex_wait(int *pointer, int expected, const struct timespec *time) STUB_ONLY
 +int sys_close(int fd) STUB_ONLY
 +int sys_seek(int fd, off_t offset, int whence, off_t *new_offset) STUB_ONLY
 +
@@ -217,6 +217,14 @@ index 0000000..10d644e
 +++ b/ports/mlibc-workdir/sysdeps/bestos/include/abi-bits/ino_t.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/ino_t.h
+\ No newline at end of file
+diff --git a/ports/mlibc-workdir/sysdeps/bestos/include/abi-bits/limits.h b/ports/mlibc-workdir/sysdeps/bestos/include/abi-bits/limits.h
+new file mode 120000
+index 0000000..1aa5894
+--- /dev/null
++++ b/ports/mlibc-workdir/sysdeps/bestos/include/abi-bits/limits.h
+@@ -0,0 +1 @@
++../../../../abis/mlibc/limits.h
 \ No newline at end of file
 diff --git a/ports/mlibc-workdir/sysdeps/bestos/include/abi-bits/mode_t.h b/ports/mlibc-workdir/sysdeps/bestos/include/abi-bits/mode_t.h
 new file mode 120000
@@ -322,12 +330,20 @@ index 0000000..f1a985e
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/vm-flags.h
 \ No newline at end of file
+diff --git a/ports/mlibc-workdir/sysdeps/bestos/include/abi-bits/wait.h b/ports/mlibc-workdir/sysdeps/bestos/include/abi-bits/wait.h
+new file mode 120000
+index 0000000..6d911c7
+--- /dev/null
++++ b/ports/mlibc-workdir/sysdeps/bestos/include/abi-bits/wait.h
+@@ -0,0 +1 @@
++../../../../abis/mlibc/wait.h
+\ No newline at end of file
 diff --git a/ports/mlibc-workdir/sysdeps/bestos/meson.build b/ports/mlibc-workdir/sysdeps/bestos/meson.build
 new file mode 100644
 index 0000000..0169278
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/bestos/meson.build
-@@ -0,0 +1,48 @@
+@@ -0,0 +1,52 @@
 +
 +rtdl_sources += files(
 +	'generic/generic.cpp'
@@ -347,6 +363,7 @@ index 0000000..0169278
 +		'include/abi-bits/errno.h',
 +		'include/abi-bits/fcntl.h',
 +		'include/abi-bits/in.h',
++		'include/abi-bits/reboot.h',
 +		'include/abi-bits/resource.h',
 +		'include/abi-bits/stat.h',
 +		'include/abi-bits/signal.h',
@@ -362,9 +379,12 @@ index 0000000..0169278
 +		'include/abi-bits/nlink_t.h',
 +		'include/abi-bits/pid_t.h',
 +		'include/abi-bits/uid_t.h',
++		'include/abi-bits/wait.h',
++		'include/abi-bits/limits.h',
 +		subdir: 'abi-bits'
 +	)
 +endif
++
 +
 +if not headers_only
 +	crt = custom_target('crt0',

@@ -41,4 +41,6 @@ Task *sched_tick(void);
 bool sched_started();
 void sched_start();
 
+void sched_new_elf_process(char *path, const char **argv, const char **envp);
+
 #endif

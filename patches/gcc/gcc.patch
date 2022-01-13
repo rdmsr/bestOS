@@ -54,9 +54,9 @@ index 0000000..7caace5
 +#define GNU_USER_LINK_EMULATION64 "elf_x86_64"
 +#define GNU_USER_LINK_EMULATIONX32 "elf32_x86_64"
 +
-+#define GNU_USER_DYNAMIC_LINKER32 "/lib/ld_i386.so"
-+#define GNU_USER_DYNAMIC_LINKER64 "/lib/ld.so"
-+#define GNU_USER_DYNAMIC_LINKERX32 "/lib/ld32.so"
++#define GNU_USER_DYNAMIC_LINKER32 "/usr/lib/ld_i386.so"
++#define GNU_USER_DYNAMIC_LINKER64 "/usr/lib/ld.so"
++#define GNU_USER_DYNAMIC_LINKERX32 "/usr/lib/ld32.so"
 +
 +#undef TARGET_OS_CPP_BUILTINS
 +#define TARGET_OS_CPP_BUILTINS()         \
@@ -127,6 +127,7 @@ index c529cc4..d1f469c 100644
  	tmake_file="$tmake_file t-libgcc-pic"
  	;;
 +x86_64-*-bestos*)
++	extra_parts="$extra_parts crtprec32.o crtprec64.o crtprec80.o crtfastmath.o"
 +	tmake_file="$tmake_file i386/t-crtstuff"
 +	;;
  i[34567]86-*-dragonfly*)

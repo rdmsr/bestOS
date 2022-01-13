@@ -1,14 +1,39 @@
 #include <arch/memory.h>
 #include <elf.h>
+#include <lib/print.h>
 
-uint64_t elf_load_program(uint64_t elf_base, Task *task)
+uint64_t elf_load_program(uint64_t elf_base, uintptr_t base, Task *task, Auxval *auxval, char **ld_path)
 {
     Elf64Header *elf_header = (Elf64Header *)elf_base;
 
     Elf64ProgramHeader *prog_header = (Elf64ProgramHeader *)(elf_base + elf_header->program_header_table_file_offset);
 
+    auxval->at_phdr = 0;
+    auxval->at_phent = sizeof(Elf64ProgramHeader);
+    auxval->at_phnum = elf_header->program_header_table_entry_count;
+
     for (size_t i = 0; i < elf_header->program_header_table_entry_count; i++)
     {
+
+        if (prog_header->type == ELF_PROGRAM_HEADER_INTERPRET)
+        {
+
+            if (!ld_path)
+            {
+                return 0;
+            }
+
+            *ld_path = malloc(prog_header->file_size + 1);
+
+            memcpy(*ld_path, (void *)(elf_base + prog_header->file_offset), prog_header->file_size);
+
+            (*ld_path)[prog_header->file_size] = 0;
+        }
+
+        if (prog_header->type == 6)
+        {
+            auxval->at_phdr = base + prog_header->virtual_address;
+        }
 
         if (prog_header->type == ELF_PROGRAM_HEADER_LOAD)
         {
@@ -16,8 +41,7 @@ uint64_t elf_load_program(uint64_t elf_base, Task *task)
 
             for (size_t j = 0; j < ALIGN_UP(prog_header->memory_size, PAGE_SIZE) / 4096; j++)
             {
-
-                vmm_map(task->pagemap, j * PAGE_SIZE + (uint64_t)new_addr, j * PAGE_SIZE + prog_header->virtual_address, 0b111);
+                vmm_map(task->pagemap, j * PAGE_SIZE + (uint64_t)new_addr, base + j * PAGE_SIZE + prog_header->virtual_address, 0b111);
             }
 
             memcpy((void *)((uint64_t)new_addr + MMAP_IO_BASE), (void *)(elf_base + prog_header->file_offset), prog_header->file_size);
@@ -26,6 +50,8 @@ uint64_t elf_load_program(uint64_t elf_base, Task *task)
 
         prog_header = (Elf64ProgramHeader *)((uint8_t *)prog_header + elf_header->program_header_table_entry_size);
     }
+
+    auxval->at_entry = base + elf_header->entry;
 
     Elf64SectionHeader *shdr = (Elf64SectionHeader *)(elf_header + elf_header->section_header_table_file_offset);
 
@@ -48,5 +74,5 @@ uint64_t elf_load_program(uint64_t elf_base, Task *task)
         }
     }
 
-    return elf_header->entry;
+    return base + elf_header->entry;
 }

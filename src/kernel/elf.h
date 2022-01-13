@@ -104,6 +104,13 @@ typedef struct PACKED
 
     uint64_t alignment;
 } Elf64ProgramHeader;
+typedef struct
+{
+    uintptr_t at_entry;
+    uintptr_t at_phdr;
+    uintptr_t at_phent;
+    uintptr_t at_phnum;
+} Auxval;
 
 typedef struct PACKED
 {
@@ -128,4 +135,4 @@ inline bool elf_validate(Elf64Header const *header)
            header->ident.magics[3] == 'F';
 }
 
-uint64_t elf_load_program(uint64_t elf_base, Task *task);
+uint64_t elf_load_program(uint64_t elf_base, uintptr_t base, Task *task, Auxval *auxval, char **ld_path);
