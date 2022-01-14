@@ -149,7 +149,7 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp)
     }
 
     /* Align strp to 16-byte so that the following calculation becomes easier. */
-    stack = (void *)stack - ((uintptr_t)stack & 0xf);
+    stack = (uint64_t *)((uint8_t *)stack - ((uint64_t)stack & 0xf));
 
     /* Make sure the *final* stack pointer is 16-byte aligned.
             - The auxv takes a multiple of 16-bytes; ignore that.
@@ -159,25 +159,18 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp)
     if ((nargs + nenv + 1) & 1)
         stack--;
 
-    *(--stack) = 0;
-    *(--stack) = 0; /* Zero auxiliary vector entry */
-    stack -= 2;
-    *stack = AT_ENTRY;
-    *(stack + 1) = val.at_entry;
-    stack -= 2;
-    *stack = AT_PHDR;
-    *(stack + 1) = val.at_phdr;
-    stack -= 2;
-    *stack = AT_PHENT;
-    *(stack + 1) = val.at_phent;
-    stack -= 2;
-    *stack = AT_PHNUM;
-    *(stack + 1) = val.at_phnum;
+    // clang-format off
+    *(--stack) = 0; *(--stack) = 0; /* Zero auxiliary vector entry */
+    stack -= 2; *stack = AT_ENTRY; *(stack + 1) = val.at_entry;
+    stack -= 2; *stack = AT_PHDR; *(stack + 1) = val.at_phdr;
+    stack -= 2; *stack = AT_PHENT; *(stack + 1) = val.at_phent;
+    stack -= 2; *stack = AT_PHNUM; *(stack + 1) = val.at_phnum;
+
+    // clang-format on
 
     uintptr_t sa = t->stack.rsp;
-
     *(--stack) = 0; /* Marker for end of environ */
-    stack -= nenv;
+
     for (size_t i = 0; i < nenv; i++)
     {
         sa -= strlen(envp[i]) + 1;
@@ -185,15 +178,17 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp)
     }
 
     *(--stack) = 0; /* Marker for end of argv */
+
     stack -= nargs;
     for (size_t i = 0; i < nargs; i++)
     {
         sa -= strlen(argv[i]) + 1;
         stack[i] = sa;
     }
+
     *(--stack) = nargs; /* argc */
 
-    t->stack.rsp -= (stack_top - (uintptr_t)stack);
+    t->stack.rsp -= stack_top - (uintptr_t)stack;
 
     if (ld_path)
     {
@@ -213,6 +208,7 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp)
         char *ld;
 
         elf_load_program(ld_file->address, 0x40000000, t, &ld_val, &ld);
+
         t->stack.rip = ld_val.at_entry;
 
         free(ld_path);

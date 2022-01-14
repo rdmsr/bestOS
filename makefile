@@ -14,7 +14,7 @@ MEMORY = 256
 
 CHARDFLAGS := -nostdlib \
 			-g 	\
-			-O0                                                   \
+			-O2                                                   \
 			-fno-stack-protector			\
 			-Wall							\
 			-Wextra							\

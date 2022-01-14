@@ -79,8 +79,8 @@ void kernel_main(struct stivale2_struct *stivale2_struct, uint8_t *stack, size_t
 
     sched_init();
 
-    const char *argv[] = {"some arg", "other arg", NULL};
-    const char *envp[] = {"some arg", "other arg", NULL};
+    const char *argv[] = {"arg", NULL};
+    const char *envp[] = {"arg", NULL};
 
     sched_new_elf_process("/yes.elf", argv, envp);
 
