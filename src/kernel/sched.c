@@ -165,7 +165,6 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp)
     stack -= 2; *stack = AT_PHDR; *(stack + 1) = val.at_phdr;
     stack -= 2; *stack = AT_PHENT; *(stack + 1) = val.at_phent;
     stack -= 2; *stack = AT_PHNUM; *(stack + 1) = val.at_phnum;
-
     // clang-format on
 
     uintptr_t sa = t->stack.rsp;
