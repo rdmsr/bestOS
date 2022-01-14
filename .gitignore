@@ -9,3 +9,4 @@ bestOS.iso
 .vscode
 *.so
 src/root/usr
+*.elf
