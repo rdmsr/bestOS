@@ -23,7 +23,7 @@ typedef struct task
 
     int pid;
 
-    uintptr_t sp;
+    uintptr_t *sp;
     uintptr_t *pagemap;
 
     Stack stack;

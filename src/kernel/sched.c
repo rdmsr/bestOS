@@ -1,3 +1,4 @@
+#include "arch/memory/pmm.h"
 #include <arch/memory.h>
 #include <elf.h>
 #include <kernel/sched.h>
@@ -16,6 +17,8 @@ static size_t index = 0;
 #define AT_RANDOM 25
 #define AT_EXECFN 31
 
+#define STACK_SIZE 0x4000
+
 Task *current_task;
 
 vec_t(Task *) processes;
@@ -28,9 +31,9 @@ Task *task_init(uintptr_t entry_point)
 
     new->pid = current_pid++;
 
-    uintptr_t stack = (uintptr_t)malloc(16384);
+    uintptr_t *stack = pmm_allocate_zero(STACK_SIZE / PAGE_SIZE);
 
-    new->sp = stack + 16384;
+    new->sp = (uintptr_t *)((uintptr_t)stack + MMAP_IO_BASE + STACK_SIZE);
 
     new->pagemap = pmm_allocate_zero(1) + MMAP_KERNEL_BASE;
 
@@ -41,11 +44,12 @@ Task *task_init(uintptr_t entry_point)
         new->pagemap[i] = prev_pagemap[i];
     }
 
-    for (size_t i = 0; i < (16384 / 4096); i++)
+    // Map task's stack
+    for (size_t i = 0; i < STACK_SIZE; i += PAGE_SIZE)
     {
+        uint64_t phys_addr = i + (uintptr_t)stack;
 
-        uint64_t phys_addr = i * PAGE_SIZE + ALIGN_DOWN((stack - MMAP_IO_BASE), PAGE_SIZE);
-        uint64_t virt_addr = i * PAGE_SIZE + ALIGN_DOWN((USER_STACK_BASE - 16384), PAGE_SIZE);
+        uint64_t virt_addr = i + (USER_STACK_BASE - STACK_SIZE);
 
         vmm_map(new->pagemap, phys_addr, virt_addr, 0b111);
     }
@@ -168,6 +172,7 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp)
     // clang-format on
 
     uintptr_t sa = t->stack.rsp;
+
     *(--stack) = 0; /* Marker for end of environ */
 
     for (size_t i = 0; i < nenv; i++)
@@ -187,7 +192,7 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp)
 
     *(--stack) = nargs; /* argc */
 
-    t->stack.rsp -= stack_top - (uintptr_t)stack;
+    t->stack.rsp -= (uintptr_t)(stack_top - (uintptr_t)stack);
 
     if (ld_path)
     {
