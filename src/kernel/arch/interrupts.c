@@ -1,10 +1,11 @@
+#include "syscalls.h"
 #include <arch/arch.h>
 #include <arch/devices/pic.h>
 #include <arch/memory.h>
 #include <lib/print.h>
 #include <sched.h>
 
-Task *prev_task;
+Task *prev_task = NULL;
 
 uint64_t interrupts_handler(uint64_t rsp)
 {
@@ -28,6 +29,7 @@ uint64_t interrupts_handler(uint64_t rsp)
             if (prev_task)
             {
                 prev_task->stack = *stack;
+                asm volatile(" fxsave %0 " ::"m"(prev_task->fpu_storage));
             }
 
             Task *new_task = sched_tick();
@@ -36,16 +38,24 @@ uint64_t interrupts_handler(uint64_t rsp)
 
             *stack = new_task->stack;
 
+            asm volatile("fxrstor %0"
+                         :
+                         : "m"(new_task->fpu_storage)
+                         : "memory");
+
             asm_write_cr3((uint64_t)new_task->pagemap - MMAP_KERNEL_BASE);
         }
     }
 
     if (stack->intno == 0x42)
     {
-        log("%s", (char *)stack->rdi);
+        syscall_dispatch(stack->rax, stack);
     }
 
-    pic_eoi(stack->intno);
+    else
+    {
+        pic_eoi(stack->intno);
+    }
 
     return rsp;
 }

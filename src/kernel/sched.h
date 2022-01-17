@@ -25,10 +25,14 @@ typedef struct task
 
     uintptr_t *sp;
     uintptr_t *pagemap;
+    size_t used_pages;
 
     Stack stack;
 
     int state; // 0 = alive, 1 = waiting for death, -1 = dead
+    int exit_code;
+
+    void *fpu_storage;
 
 } Task;
 
@@ -41,6 +45,10 @@ Task *sched_tick(void);
 bool sched_started();
 void sched_start();
 
-void sched_new_elf_process(char *path, const char **argv, const char **envp);
+void sched_remove(Task *t);
+
+void sched_new_elf_process(char *path, const char **argv, const char **envp, char *stdin, char *stdout, char *stderr);
+
+Task *sched_current_task();
 
 #endif

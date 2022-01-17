@@ -74,3 +74,13 @@ ASM_MAKE_CRN(0);
 ASM_MAKE_CRN(1);
 ASM_MAKE_CRN(2);
 ASM_MAKE_CRN(3);
+
+static inline void asm_write_msr(uint32_t msr, uint64_t value)
+{
+    uint32_t edx = value >> 32;
+    uint32_t eax = (uint32_t)value;
+    asm volatile("wrmsr"
+                 :
+                 : "a"(eax), "d"(edx), "c"(msr)
+                 : "memory");
+}

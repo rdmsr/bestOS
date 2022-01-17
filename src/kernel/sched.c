@@ -1,4 +1,6 @@
 #include "arch/memory/pmm.h"
+#include "fs/vfs.h"
+#include "lib/vec.h"
 #include <arch/memory.h>
 #include <elf.h>
 #include <kernel/sched.h>
@@ -33,7 +35,11 @@ Task *task_init(uintptr_t entry_point)
 
     uintptr_t *stack = pmm_allocate_zero(STACK_SIZE / PAGE_SIZE);
 
-    new->sp = (uintptr_t *)((uintptr_t)stack + MMAP_IO_BASE + STACK_SIZE);
+    asm volatile(" fxsave %0 " ::"m"(new->fpu_storage));
+
+    new->sp = stack;
+    new->cwd = vfs_get_root();
+    new->current_fd = 0;
 
     new->pagemap = pmm_allocate_zero(1) + MMAP_KERNEL_BASE;
 
@@ -45,16 +51,16 @@ Task *task_init(uintptr_t entry_point)
     }
 
     // Map task's stack
-    for (size_t i = 0; i < STACK_SIZE; i += PAGE_SIZE)
+    for (size_t i = 0; i < (STACK_SIZE / 4096); i++)
     {
-        uint64_t phys_addr = i + (uintptr_t)stack;
+        uint64_t phys_addr = i * PAGE_SIZE + (uintptr_t)stack;
 
-        uint64_t virt_addr = i + (USER_STACK_BASE - STACK_SIZE);
+        uint64_t virt_addr = i * PAGE_SIZE + (USER_STACK_TOP - STACK_SIZE);
 
         vmm_map(new->pagemap, phys_addr, virt_addr, 0b111);
     }
 
-    new->stack.rsp = USER_STACK_BASE;
+    new->stack.rsp = USER_STACK_TOP;
     new->stack.rip = entry_point;
     new->stack.rflags = 0x202;
 
@@ -80,6 +86,10 @@ static uint32_t lock = 0;
 
 Task *sched_tick()
 {
+    while (processes.length == 0)
+    {
+        asm_hlt();
+    }
 
     spin_lock(&lock);
 
@@ -106,7 +116,7 @@ Task *sched_tick()
 void sched_init(void)
 {
     vec_init(&processes);
-    current_tick = 9;
+    current_tick = SWITCH_TICK - 1;
 }
 
 void sched_push(Task *t)
@@ -119,18 +129,56 @@ void sched_push(Task *t)
     spin_release(&lock);
 }
 
-void sched_new_elf_process(char *path, const char **argv, const char **envp)
+void sched_remove(Task *t)
+{
+    spin_lock(&lock);
+    vec_remove(&processes, t);
+    spin_release(&lock);
+}
+
+Task *sched_current_task()
+{
+    return current_task;
+}
+
+void sched_new_elf_process(char *path, const char **argv, const char **envp, char *stdin, char *stdout, char *stderr)
 {
     char *ld_path = NULL;
     Auxval val = {};
 
     Task *t = task_init(0);
 
-    VfsNode *elf_file = vfs_open(path, O_RDWR);
+    VfsNode *elf_file = vfs_open(vfs_get_root(), path, O_RDWR);
 
-    t->stack.rip = elf_load_program(elf_file->address, 0, t, &val, &ld_path);
+    void *elf_buffer = malloc(elf_file->stat.st_size);
 
-    size_t *stack = (size_t *)t->sp;
+    vfs_read(elf_file, 0, elf_file->stat.st_size, elf_buffer);
+
+    t->stack.rip = elf_load_program((uintptr_t)elf_buffer, 0, t, &val, &ld_path);
+
+    if (stdin && stdout && stderr)
+    {
+        VfsNode *stdin_node = vfs_open(vfs_get_root(), stdin, O_RDWR);
+        VfsNode *stdout_node = vfs_open(vfs_get_root(), stdout, O_RDWR);
+        VfsNode *stderr_node = vfs_open(vfs_get_root(), stderr, O_RDWR);
+
+        if (!stdin_node || !stdout_node || !stderr_node)
+        {
+            log("ERROR: couldn't open stdio files");
+        }
+
+        FileDescriptor stdin_fd = {.file = stdin_node, .fd = 0};
+        FileDescriptor stdout_fd = {.file = stdout_node, .fd = 1};
+        FileDescriptor stderr_fd = {.file = stderr_node, .fd = 2};
+
+        vec_push(&t->descriptors, stdin_fd);
+        vec_push(&t->descriptors, stdout_fd);
+        vec_push(&t->descriptors, stderr_fd);
+
+        t->current_fd = 3;
+    }
+
+    size_t *stack = (size_t *)((uintptr_t)t->sp + STACK_SIZE + MMAP_IO_BASE);
 
     // ----- The following code is from mint's lyre, all copyright goes to them (idk if thats how you do it im not a lawyer) ----
     uintptr_t stack_top = (uintptr_t)stack;
@@ -153,7 +201,7 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp)
     }
 
     /* Align strp to 16-byte so that the following calculation becomes easier. */
-    stack = (uint64_t *)((uint8_t *)stack - ((uint64_t)stack & 0xf));
+    stack = (void *)stack - ((uintptr_t)stack & 0xf);
 
     /* Make sure the *final* stack pointer is 16-byte aligned.
             - The auxv takes a multiple of 16-bytes; ignore that.
@@ -174,7 +222,7 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp)
     uintptr_t sa = t->stack.rsp;
 
     *(--stack) = 0; /* Marker for end of environ */
-
+    stack -= nenv;
     for (size_t i = 0; i < nenv; i++)
     {
         sa -= strlen(envp[i]) + 1;
@@ -192,11 +240,17 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp)
 
     *(--stack) = nargs; /* argc */
 
-    t->stack.rsp -= (uintptr_t)(stack_top - (uintptr_t)stack);
+    size_t skip = (stack_top - (uintptr_t)stack);
+
+    t->stack.rsp -= skip;
 
     if (ld_path)
     {
-        VfsNode *ld_file = vfs_open(ld_path, O_RDWR);
+        VfsNode *ld_file = vfs_open(vfs_get_root(), ld_path, O_RDWR);
+
+        void *ld_file_buf = malloc(ld_file->stat.st_size);
+
+        vfs_read(ld_file, 0, ld_file->stat.st_size, ld_file_buf);
 
         if (nerd_logs())
         {
@@ -206,17 +260,21 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp)
         if (!ld_file)
         {
             log("ERROR: couldn't find ld.so");
+            while (1)
+                ;
         }
 
         Auxval ld_val = {};
-        char *ld;
 
-        elf_load_program(ld_file->address, 0x40000000, t, &ld_val, &ld);
-
-        t->stack.rip = ld_val.at_entry;
+        elf_load_program((uintptr_t)ld_file_buf, 0x40000000, t, &ld_val, NULL);
 
         free(ld_path);
+        free(ld_file_buf);
+
+        t->stack.rip = ld_val.at_entry;
     }
+
+    free(elf_buffer);
 
     sched_push(t);
 }

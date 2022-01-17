@@ -1,4 +1,5 @@
 #include "arch/memory/vmm.h"
+#include "arch/memory/pmm.h"
 #include "stivale2.h"
 #include <arch/arch.h>
 #include <arch/memory.h>
@@ -100,4 +101,43 @@ void vmm_initialize(struct stivale2_struct *stivale2_struct)
     }
 
     vmm_load_pagemap(kernel_pagemap);
+}
+
+void vmm_mmap(uint64_t *pagemap, size_t hint, size_t size, size_t flags, size_t *used_pages, size_t *ret)
+{
+    size_t actual_flags = flags & 0xFFFFFFFF;
+
+    if ((actual_flags & MAP_ANONYMOUS) == 0)
+    {
+        log("TODO: add support for other things than map_anonymous\n");
+        while (1)
+            ;
+    }
+
+    size_t pages = ALIGN_UP(size, PAGE_SIZE) / PAGE_SIZE;
+
+    uintptr_t virt;
+
+    if (actual_flags & MAP_FIXED)
+    {
+        virt = hint;
+    }
+    else
+    {
+        virt = (*used_pages) * 4096 + ALLOC_BASE;
+
+        (*used_pages) += pages;
+    }
+
+    foreach (i, pages)
+    {
+        void *ret = pmm_allocate_zero(1);
+        if (!ret)
+        {
+            log("ERROR: pmm returned null");
+        }
+        vmm_map(pagemap, (uintptr_t)ret, virt + i * 4096, 0b111);
+    }
+
+    *ret = virt;
 }

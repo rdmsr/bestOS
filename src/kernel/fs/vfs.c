@@ -4,7 +4,7 @@
 #include <lib/print.h>
 #include <lib/str.h>
 
-Mountpoint mountpoints[64];
+Mountpoint mountpoints[64] = {};
 size_t mountpoints_n = 0;
 VfsNode *root = NULL;
 
@@ -18,7 +18,7 @@ VfsNode *vfs_mkdir(char *path)
 
     if (!str_eq(path, "/"))
     {
-        node->parent = vfs_get_parent(path);
+        node->parent = vfs_get_parent(root, path);
         node->name = basename(path);
 
         if (!node->parent)
@@ -27,7 +27,7 @@ VfsNode *vfs_mkdir(char *path)
             return NULL;
         }
 
-        node->mountpoint = node->parent->mountpoint;
+        node->mountpoint = root->mountpoint;
 
         VfsNode *prev_dir = malloc(sizeof(VfsNode));
 
@@ -80,6 +80,7 @@ int vfs_mount(char *where, Filesystem fs)
     }
 
     VfsNode *node = vfs_mkdir(where);
+    node->mountpoint = malloc(sizeof(Mountpoint));
 
     node->mountpoint->fs = fs;
 
@@ -130,9 +131,9 @@ VfsNode *vfs_find_node(VfsNode *start, char *name)
     return NULL;
 }
 
-VfsNode *vfs_get_parent(char *path)
+VfsNode *vfs_get_parent(VfsNode *start, char *path)
 {
-    VfsNode *node = root;
+    VfsNode *node = start;
 
     vec_str_t segments = vfs_parse_path(path);
 
@@ -153,10 +154,10 @@ VfsNode *vfs_get_parent(char *path)
         {
             if (segments.length == 2)
             {
-                return root;
+                return start;
             }
 
-            node = vfs_find_node(root, segments.data[i + 1]);
+            node = vfs_find_node(start, segments.data[i + 1]);
         }
     }
 
@@ -171,9 +172,12 @@ VfsNode *vfs_get_root()
     return root;
 }
 
-VfsNode *vfs_open(char *path, int flags)
+VfsNode *vfs_open(VfsNode *start, char *path, int flags)
 {
-    VfsNode *parent = vfs_get_parent(path);
+
+    /// FIXME: use start
+    (void)start;
+    VfsNode *parent = vfs_get_parent(root, path);
 
     if (!parent)
     {
@@ -241,5 +245,7 @@ int vfs_read(VfsNode *vfs_node, size_t offset, size_t count, void *buf)
 
 int vfs_write(VfsNode *vfs_node, size_t count, void *buf)
 {
-    return vfs_node->mountpoint->fs.write(vfs_node, count, buf);
+    if (vfs_node->mountpoint->fs.write(vfs_node, count, buf) != -1)
+        return count;
+    return -1;
 }

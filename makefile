@@ -3,18 +3,18 @@ LD 	 	   = x86_64-elf-ld
 AS  	   = nasm
 
 ASMFILES  := $(shell find src -name '*.asm')
-CFILES    := $(shell find src -name '*.c') 
+CFILES    := $(shell find src/kernel src/lib -name '*.c') 
 
 OBJ = $(patsubst %.c, $(BUILD_DIRECTORY)/%.c.o, $(CFILES)) \
         $(patsubst %.asm, $(BUILD_DIRECTORY)/%.asm.o, $(ASMFILES))
 
 TARGET = $(BUILD_DIRECTORY)/kernel.elf
 ISO = bestOS.iso
-MEMORY = 256
+MEMORY = 512M
 
 CHARDFLAGS := -nostdlib \
 			-g 	\
-			-O0                                                   \
+			-O2                                                   \
 			-fno-stack-protector			\
 			-Wall							\
 			-Wextra							\
@@ -55,6 +55,8 @@ debug: $(ISO)
 gdb: $(ISO)
 	qemu-system-x86_64 -cdrom $< -s -S -serial stdio -m $(MEMORY) -no-shutdown -no-reboot
 
+tcg: $(ISO)
+	qemu-system-x86_64 -cdrom $< -serial stdio -rtc base=localtime -m $(MEMORY) -no-shutdown -no-reboot
 $(BUILD_DIRECTORY)/%.c.o: %.c
 	$(DIRECTORY_GUARD)
 	$(CC) $(CHARDFLAGS) -c $< -o $@

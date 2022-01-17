@@ -11,6 +11,7 @@ usage()
   echo "Options:"
   echo "    -a, --all      Build tools, install the tools and build the system"
   echo "    -c, --clean    Do a clean build"
+  echo "    -e, --env      Setup the environment"
   echo "    -b, --build    Build the system"
   echo "    -r, --run      Run the system in QEMU"
   echo "    -i, --install  Install everything to the system root"
@@ -49,6 +50,10 @@ eval_arg()
     "-t" | "--tools")
       mkdir -p sysroot && cd sysroot && xbstrap init .. && xbstrap install -u --all
       ;;
+	"-e" | "--env")
+		export PATH=$PATH:$PWD/sysroot/tools/host-gcc/bin
+		export PATH=$PATH:$PWD/sysroot/tools/host-binutils/bin
+	  ;;
 
     "-i" | "--install")
       mkdir -p src/root/usr/lib

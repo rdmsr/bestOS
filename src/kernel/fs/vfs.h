@@ -30,6 +30,9 @@ typedef struct vfs_node
     int o_mode;
 
     uintptr_t address;
+    uintptr_t internal_address;
+
+    bool init;
 
 } VfsNode;
 
@@ -49,7 +52,7 @@ typedef struct mountpoint
 
 int vfs_mount(char *where, Filesystem fs);
 
-VfsNode *vfs_open(char *path, int flags);
+VfsNode *vfs_open(VfsNode *parent, char *path, int flags);
 
 int vfs_read(VfsNode *vfs_node, size_t offset, size_t count, void *buf);
 
@@ -57,8 +60,10 @@ VfsNode *vfs_mkdir(char *path);
 
 VfsNode *vfs_get_root();
 
-VfsNode *vfs_get_parent(char *path);
+VfsNode *vfs_get_parent(VfsNode *start, char *path);
 
 int vfs_write(VfsNode *vfs_node, size_t count, void *buf);
+
+VfsNode *vfs_find_node(VfsNode *start, char *name);
 
 #endif

@@ -5,7 +5,7 @@
 
 #define PAGE_SIZE 4096
 // lmao
-#define USER_STACK_BASE (uintptr_t)((uintptr_t)((uintptr_t)1 << (uintptr_t)47) - 8192)
+#define USER_STACK_TOP (uintptr_t)((uintptr_t)((uintptr_t)1 << (uintptr_t)47) - 8192)
 
 typedef struct PACKED
 {
@@ -34,5 +34,7 @@ typedef struct PACKED
     uint64_t rsp;
     uint64_t ss;
 } Stack;
+
+#define STACK_SIZE 0x4000
 
 #endif

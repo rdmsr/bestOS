@@ -95,7 +95,7 @@ int ustar_read(VfsNode *node, size_t offset, size_t count, void *buffer)
 {
     memcpy(buffer, (void *)(node->address + offset), count);
 
-    return 0;
+    return count;
 }
 
 int ustar_write(VfsNode *node, size_t offset, size_t count, void *buffer)

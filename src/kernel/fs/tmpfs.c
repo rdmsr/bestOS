@@ -11,7 +11,7 @@ void tmpfs_create_file(char *name, uintptr_t address, size_t size)
 
     ret->type = VFS_FILE;
 
-    ret->parent = vfs_get_parent(name);
+    ret->parent = vfs_get_parent(vfs_get_root(), name);
 
     ret->mountpoint = ret->parent->mountpoint;
 
@@ -19,18 +19,27 @@ void tmpfs_create_file(char *name, uintptr_t address, size_t size)
 
     void *new_addr = malloc(size + 1);
 
-    memcpy(new_addr, (void *)address, size);
-
     ret->address = (uintptr_t)new_addr;
+
+    ret->internal_address = address;
 
     vec_push(&ret->parent->children, ret);
 }
 
 int tmpfs_read(VfsNode *node, size_t offset, size_t count, void *buffer)
 {
+    if (!node->init)
+    {
+        memcpy((void *)node->address, (void *)node->internal_address, node->stat.st_size);
+        node->init = true;
+    }
+
+    if (!buffer)
+        return -1;
+
     memcpy(buffer, (void *)(node->address + offset), count);
 
-    return 0;
+    return count;
 }
 
 int tmpfs_write(VfsNode *node, size_t count, void *buffer)
@@ -67,5 +76,5 @@ int tmpfs_write(VfsNode *node, size_t count, void *buffer)
 
 Filesystem tmpfs()
 {
-    return (Filesystem){.read = tmpfs_read, .write = tmpfs_write};
+    return (Filesystem){.read = tmpfs_read, .write = tmpfs_write, .name = "tmpfs"};
 }

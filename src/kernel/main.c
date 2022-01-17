@@ -6,6 +6,7 @@
 #include <arch/idt.h>
 #include <arch/memory.h>
 #include <elf.h>
+#include <fs/devfs.h>
 #include <fs/tmpfs.h>
 #include <fs/ustar.h>
 #include <lib/alloc.h>
@@ -14,6 +15,8 @@
 #include <lib/str.h>
 #include <sched.h>
 #include <stivale2.h>
+
+extern void enable_sse();
 
 void *stivale2_get_tag(struct stivale2_struct *stivale2_struct, uint64_t id);
 
@@ -51,6 +54,8 @@ void print_files(VfsNode *node)
 
 void kernel_main(struct stivale2_struct *stivale2_struct, uint8_t *stack, size_t stack_size)
 {
+
+    enable_sse();
     com_initialize();
 
     log("Welcome to bestOS: An agile, cloud-ready, blockchain-powered, web-scale operating system");
@@ -75,14 +80,17 @@ void kernel_main(struct stivale2_struct *stivale2_struct, uint8_t *stack, size_t
         }
     }
 
-    print_files(vfs_get_root());
+    devfs_init();
+
+    if (nerd_logs())
+        print_files(vfs_get_root());
 
     sched_init();
 
-    const char *argv[] = {"arg", NULL};
-    const char *envp[] = {"arg", NULL};
+    const char *argv[] = {NULL};
+    const char *envp[] = {"PATH=/bin", NULL};
 
-    sched_new_elf_process("/yes.elf", argv, envp);
+    sched_new_elf_process("/bin/init", argv, envp, "/dev/tty", "/dev/tty", "/dev/tty");
 
     sched_start();
 
