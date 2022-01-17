@@ -87,7 +87,7 @@ void kernel_main(struct stivale2_struct *stivale2_struct, uint8_t *stack, size_t
 
     sched_init();
 
-    const char *argv[] = {NULL};
+    const char *argv[] = {"/bin/sh", NULL};
     const char *envp[] = {"PATH=/bin", NULL};
 
     sched_new_elf_process("/bin/init", argv, envp, "/dev/tty", "/dev/tty", "/dev/tty");

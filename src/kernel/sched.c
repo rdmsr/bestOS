@@ -19,8 +19,6 @@ static size_t index = 0;
 #define AT_RANDOM 25
 #define AT_EXECFN 31
 
-#define STACK_SIZE 0x4000
-
 Task *current_task;
 
 vec_t(Task *) processes;
@@ -141,11 +139,25 @@ Task *sched_current_task()
     return current_task;
 }
 
+int sched_get_last_pid()
+{
+    return current_pid;
+}
+
+void sched_set_tick(int t)
+{
+    current_tick = t;
+}
+
+void sched_set_index(int i)
+{
+    index = i;
+}
+
 void sched_new_elf_process(char *path, const char **argv, const char **envp, char *stdin, char *stdout, char *stderr)
 {
     char *ld_path = NULL;
     Auxval val = {};
-
     Task *t = task_init(0);
 
     VfsNode *elf_file = vfs_open(vfs_get_root(), path, O_RDWR);

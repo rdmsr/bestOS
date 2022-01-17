@@ -51,4 +51,8 @@ void sched_new_elf_process(char *path, const char **argv, const char **envp, cha
 
 Task *sched_current_task();
 
+void sched_set_tick(int t);
+void sched_set_index(int i);
+int sched_get_last_pid();
+
 #endif

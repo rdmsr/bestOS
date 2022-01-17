@@ -80,7 +80,7 @@ new file mode 100644
 index 0000000..d64e08d
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/bestos/generic/generic.cpp
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,179 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -138,6 +138,7 @@ index 0000000..d64e08d
 +#define SYSCALL_CLOSE 6
 +#define SYSCALL_SEEK 7
 +#define SYSCALL_EXIT 8
++#define SYSCALL_EXECVE 9
 +
 +namespace mlibc {
 +
@@ -193,7 +194,15 @@ index 0000000..d64e08d
 +    return 0;
 +}
 +
-+
++int sys_gethostname(char *buffer, size_t bufsize) {
++    const char *hostname = "bestos";
++    for (size_t i = 0; i < bufsize; i++) {
++        buffer[i] = hostname[i];
++        if (hostname[i] == 0)
++            break;
++ 	 }
++    return 0;
++}
 +int sys_seek(int fd, off_t offset, int whence, off_t *new_offset) {
 +    off_t ret;
 +    int errno;
@@ -240,6 +249,11 @@ index 0000000..d64e08d
 +int sys_anon_allocate(size_t size, void **pointer) {
 +    int errno = sys_vm_map(NULL, size, PROT_EXEC | PROT_READ | PROT_WRITE,
 +                           MAP_ANONYMOUS, -1, 0, pointer);
++    return errno;
++}
++int sys_execve(const char *path, char *const argv[], char *const envp[]) {
++    int errno, ret;
++    SYSCALL3(SYSCALL_EXECVE, path, argv, envp);
 +    return errno;
 +}
 +int sys_anon_free(void *pointer, size_t size) STUB_ONLY

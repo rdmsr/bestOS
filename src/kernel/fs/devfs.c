@@ -10,7 +10,7 @@ int devfs_read(VfsNode *node, size_t offset, size_t count, void *buffer)
 
     if (str_eq(node->name, "tty"))
     {
-        char *buf = malloc(count + 1);
+        char *buf = malloc(count);
 
         size_t i = 0;
         char curr_char = 0;
@@ -24,13 +24,16 @@ int devfs_read(VfsNode *node, size_t offset, size_t count, void *buffer)
             com_putc(curr_char);
         }
 
+        buf[i] = -1;
+        curr_char = 0;
+
         com_putc('\n');
 
-        memcpy(buffer, buf, count);
+        memcpy(buffer, buf, i);
+
         free(buf);
 
-        node->cursor += count;
-        return count;
+        return i;
     }
 
     return -1;

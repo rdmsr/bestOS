@@ -31,6 +31,9 @@ int tmpfs_read(VfsNode *node, size_t offset, size_t count, void *buffer)
     if (!node->init)
     {
         memcpy((void *)node->address, (void *)node->internal_address, node->stat.st_size);
+
+        ((char *)node->address)[node->stat.st_size - 1] = -1;
+
         node->init = true;
     }
 
@@ -38,6 +41,8 @@ int tmpfs_read(VfsNode *node, size_t offset, size_t count, void *buffer)
         return -1;
 
     memcpy(buffer, (void *)(node->address + offset), count);
+
+    node->cursor += count;
 
     return count;
 }

@@ -126,6 +126,7 @@ int64_t sys_close(Stack *stack)
     VfsNode *file = get_fd(fildes).file;
 
     file->init = false;
+    file->cursor = 0;
 
     free((void *)file->address);
 
@@ -190,6 +191,20 @@ int64_t sys_exit(Stack *stack)
         ;
 }
 
+int64_t sys_execve(Stack *stack)
+{
+    const char *path = (const char *)stack->rdi;
+    const char **argv = (const char **)stack->rsi;
+    const char **envp = (const char **)stack->rdx;
+
+    sched_new_elf_process((char *)path, argv, envp, NULL, NULL, NULL);
+    sched_set_index(sched_get_last_pid() - 2);
+    sched_set_tick(SWITCH_TICK - 1);
+
+    stack->rax = 0;
+    return 0;
+}
+
 Syscall *syscalls[] = {
     [SYSCALL_LOG] = sys_log,
     [SYSCALL_MMAP] = sys_mmap,
@@ -200,6 +215,7 @@ Syscall *syscalls[] = {
     [SYSCALL_CLOSE] = sys_close,
     [SYSCALL_SEEK] = sys_seek,
     [SYSCALL_EXIT] = sys_exit,
+    [SYSCALL_EXECVE] = sys_execve,
 };
 
 int64_t syscall_dispatch(int num, Stack *args)

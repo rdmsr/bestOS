@@ -10,6 +10,7 @@
 #define SYSCALL_CLOSE 6
 #define SYSCALL_SEEK 7
 #define SYSCALL_EXIT 8
+#define SYSCALL_EXECVE 9
 
 #include <arch/arch.h>
 
